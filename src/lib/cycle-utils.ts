@@ -11,6 +11,121 @@ export interface CycleStats {
   fertileWindowEnd: Date | null;
 }
 
+export type CyclePhase = "menstrual" | "follicular" | "ovulation" | "luteal" | "unknown";
+
+export interface CyclePhaseInfo {
+  phase: CyclePhase;
+  dayOfCycle: number | null;
+  daysUntilNextPeriod: number | null;
+}
+
+export function getCyclePhase(entries: CycleEntry[], stats: CycleStats): CyclePhaseInfo {
+  const today = new Date();
+
+  const periodStarts = entries
+    .filter((e) => e.entry_type === "period_start")
+    .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
+
+  if (periodStarts.length === 0 || !stats.averageCycleLength) {
+    return { phase: "unknown", dayOfCycle: null, daysUntilNextPeriod: null };
+  }
+
+  const lastPeriodStart = new Date(periodStarts[periodStarts.length - 1].entry_date);
+  const dayOfCycle = differenceInDays(today, lastPeriodStart) + 1;
+
+  // Calculate days until next period
+  const daysUntilNextPeriod = stats.predictedNextPeriodDate
+    ? differenceInDays(stats.predictedNextPeriodDate, today)
+    : null;
+
+  // Determine phase based on cycle day
+  const cycleLength = stats.averageCycleLength;
+  const periodDuration = stats.averagePeriodDuration || 5;
+  const ovulationDay = cycleLength - 14;
+
+  let phase: CyclePhase;
+
+  if (dayOfCycle <= periodDuration) {
+    phase = "menstrual";
+  } else if (dayOfCycle <= ovulationDay - 5) {
+    phase = "follicular";
+  } else if (dayOfCycle <= ovulationDay + 1) {
+    phase = "ovulation";
+  } else if (dayOfCycle <= cycleLength) {
+    phase = "luteal";
+  } else {
+    // Past expected cycle length, likely in menstrual or late luteal
+    phase = "luteal";
+  }
+
+  return { phase, dayOfCycle, daysUntilNextPeriod };
+}
+
+export interface PhaseHealthTip {
+  title: string;
+  tips: string[];
+  color: string;
+}
+
+export function getPhaseHealthTips(phase: CyclePhase): PhaseHealthTip {
+  switch (phase) {
+    case "menstrual":
+      return {
+        title: "Menstrual Phase",
+        tips: [
+          "Rest and gentle movement like walking or yoga",
+          "Stay hydrated and eat iron-rich foods",
+          "Use a heating pad for cramp relief",
+          "Prioritize sleep and self-care"
+        ],
+        color: "red"
+      };
+    case "follicular":
+      return {
+        title: "Follicular Phase",
+        tips: [
+          "Energy levels rising - great for new projects",
+          "Try high-intensity workouts",
+          "Focus on creative and social activities",
+          "Eat fresh, light foods with lean proteins"
+        ],
+        color: "blue"
+      };
+    case "ovulation":
+      return {
+        title: "Ovulation Phase",
+        tips: [
+          "Peak energy and confidence",
+          "Best time for important conversations",
+          "High fertility window",
+          "Stay hydrated and eat antioxidant-rich foods"
+        ],
+        color: "green"
+      };
+    case "luteal":
+      return {
+        title: "Luteal Phase",
+        tips: [
+          "Gradually reduce workout intensity",
+          "Eat complex carbs and magnesium-rich foods",
+          "Practice stress management techniques",
+          "Prepare for upcoming period with self-care"
+        ],
+        color: "purple"
+      };
+    default:
+      return {
+        title: "Track Your Cycle",
+        tips: [
+          "Start logging your period to get personalized insights",
+          "Track symptoms and mood for better awareness",
+          "Regular tracking helps predict future cycles"
+        ],
+        color: "gray"
+      };
+  }
+}
+
 export function calculateCycleStats(entries: CycleEntry[]): CycleStats {
   const periodStarts = entries
     .filter((e) => e.entry_type === "period_start")

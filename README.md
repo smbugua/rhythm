@@ -18,6 +18,11 @@ A simple, privacy-focused period tracking web app built with Next.js 14 and Supa
   - Ovulation day indicator with special border
   - Click on fertile days to see "High likelihood of pregnancy" popup
   - Dedicated green Fertile Window card in stats panel
+- Personalized dashboard:
+  - Time-based greeting with user's name
+  - Cycle phase indicator (menstrual, follicular, ovulation, luteal)
+  - Daily insights showing cycle day and days until next period
+  - Phase-specific health tips and recommendations
 - Mobile-responsive design
 
 ## Tech Stack

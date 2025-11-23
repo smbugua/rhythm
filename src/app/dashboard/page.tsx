@@ -3,28 +3,33 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { CycleEntry } from "@/lib/supabase";
-import { calculateCycleStats } from "@/lib/cycle-utils";
+import { calculateCycleStats, getCyclePhase } from "@/lib/cycle-utils";
 import { Calendar } from "@/components/Calendar";
 import { StatsPanel } from "@/components/StatsPanel";
 import { EntryModal } from "@/components/EntryModal";
 import { Header } from "@/components/Header";
+import { DashboardGreeting } from "@/components/DashboardGreeting";
 import { format } from "date-fns";
+import { User } from "@supabase/supabase-js";
 
 export default function DashboardPage() {
   const [entries, setEntries] = useState<CycleEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
   const fetchEntries = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    setUser(authUser);
 
     const { data, error } = await supabase
       .from("cycle_entries")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", authUser.id)
       .order("entry_date", { ascending: true });
 
     if (error) {
@@ -78,6 +83,7 @@ export default function DashboardPage() {
   };
 
   const stats = calculateCycleStats(entries);
+  const phaseInfo = getCyclePhase(entries, stats);
 
   if (loading) {
     return (
@@ -91,6 +97,11 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container px-4 py-6 max-w-4xl mx-auto space-y-6">
+        <DashboardGreeting
+          userName={user?.user_metadata?.full_name || user?.email || null}
+          stats={stats}
+          phaseInfo={phaseInfo}
+        />
         <StatsPanel stats={stats} />
         <Calendar
           entries={entries}
