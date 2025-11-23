@@ -2,18 +2,20 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import { CycleEntry } from "@/lib/supabase";
+import { CycleEntry, DailyLog } from "@/lib/supabase";
 import { calculateCycleStats, getCyclePhase } from "@/lib/cycle-utils";
 import { Calendar } from "@/components/Calendar";
 import { StatsPanel } from "@/components/StatsPanel";
 import { EntryModal } from "@/components/EntryModal";
 import { Header } from "@/components/Header";
 import { DashboardGreeting } from "@/components/DashboardGreeting";
+import { SymptomTrends } from "@/components/SymptomTrends";
 import { format } from "date-fns";
 import { User } from "@supabase/supabase-js";
 
 export default function DashboardPage() {
   const [entries, setEntries] = useState<CycleEntry[]>([]);
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -26,18 +28,31 @@ export default function DashboardPage() {
 
     setUser(authUser);
 
-    const { data, error } = await supabase
-      .from("cycle_entries")
-      .select("*")
-      .eq("user_id", authUser.id)
-      .order("entry_date", { ascending: true });
+    const [entriesResult, logsResult] = await Promise.all([
+      supabase
+        .from("cycle_entries")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .order("entry_date", { ascending: true }),
+      supabase
+        .from("daily_logs")
+        .select("*")
+        .eq("user_id", authUser.id)
+        .order("log_date", { ascending: true })
+    ]);
 
-    if (error) {
-      console.error("Error fetching entries:", error);
-      return;
+    if (entriesResult.error) {
+      console.error("Error fetching entries:", entriesResult.error);
+    } else {
+      setEntries(entriesResult.data || []);
     }
 
-    setEntries(data || []);
+    if (logsResult.error) {
+      console.error("Error fetching daily logs:", logsResult.error);
+    } else {
+      setDailyLogs(logsResult.data || []);
+    }
+
     setLoading(false);
   }, [supabase]);
 
@@ -82,6 +97,41 @@ export default function DashboardPage() {
     await fetchEntries();
   };
 
+  const handleSaveDailyLog = async (
+    date: Date,
+    mood: number | null,
+    energy: number | null,
+    symptoms: string[],
+    notes: string
+  ) => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+
+    const logDate = format(date, "yyyy-MM-dd");
+
+    // Upsert (insert or update if exists)
+    const { error } = await supabase
+      .from("daily_logs")
+      .upsert({
+        user_id: authUser.id,
+        log_date: logDate,
+        mood,
+        energy,
+        symptoms: symptoms.length > 0 ? symptoms : null,
+        notes: notes || null,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: "user_id,log_date"
+      });
+
+    if (error) {
+      console.error("Error saving daily log:", error);
+      throw error;
+    }
+
+    await fetchEntries();
+  };
+
   const stats = calculateCycleStats(entries);
   const phaseInfo = getCyclePhase(entries, stats);
 
@@ -103,6 +153,7 @@ export default function DashboardPage() {
           phaseInfo={phaseInfo}
         />
         <StatsPanel stats={stats} />
+        <SymptomTrends dailyLogs={dailyLogs} />
         <Calendar
           entries={entries}
           stats={stats}
@@ -111,9 +162,11 @@ export default function DashboardPage() {
         <EntryModal
           date={selectedDate}
           entries={entries}
+          dailyLogs={dailyLogs}
           onClose={() => setSelectedDate(null)}
           onSave={handleSaveEntry}
           onDelete={handleDeleteEntry}
+          onSaveDailyLog={handleSaveDailyLog}
         />
       </main>
     </div>

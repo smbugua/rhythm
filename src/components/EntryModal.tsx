@@ -12,13 +12,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CycleEntry } from "@/lib/supabase";
+import { CycleEntry, DailyLog } from "@/lib/supabase";
 import { getEntriesForDate } from "@/lib/cycle-utils";
 import { Trash2 } from "lucide-react";
+import { MoodEnergySelector, SymptomSelector } from "./MoodEnergySelector";
 
 interface EntryModalProps {
   date: Date | null;
   entries: CycleEntry[];
+  dailyLogs: DailyLog[];
   onClose: () => void;
   onSave: (
     date: Date,
@@ -26,16 +28,28 @@ interface EntryModalProps {
     notes: string
   ) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
+  onSaveDailyLog: (
+    date: Date,
+    mood: number | null,
+    energy: number | null,
+    symptoms: string[],
+    notes: string
+  ) => Promise<void>;
 }
 
 export function EntryModal({
   date,
   entries,
+  dailyLogs,
   onClose,
   onSave,
   onDelete,
+  onSaveDailyLog,
 }: EntryModalProps) {
   const [notes, setNotes] = useState("");
+  const [mood, setMood] = useState<number | null>(null);
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [symptoms, setSymptoms] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -44,22 +58,54 @@ export function EntryModal({
     [date, entries]
   );
 
+  const dayLog = useMemo(
+    () => (date ? dailyLogs.find(log => log.log_date === format(date, "yyyy-MM-dd")) : undefined),
+    [date, dailyLogs]
+  );
+
   useEffect(() => {
     if (date) {
-      // Pre-fill notes if there's an existing entry
-      const existingNotes = dayEntries.find((e) => e.notes)?.notes || "";
-      setNotes(existingNotes);
+      // Pre-fill from existing daily log or entry
+      if (dayLog) {
+        setMood(dayLog.mood);
+        setEnergy(dayLog.energy);
+        setSymptoms(dayLog.symptoms || []);
+        setNotes(dayLog.notes || "");
+      } else {
+        const existingNotes = dayEntries.find((e) => e.notes)?.notes || "";
+        setNotes(existingNotes);
+        setMood(null);
+        setEnergy(null);
+        setSymptoms([]);
+      }
     }
-  }, [date, dayEntries]);
+  }, [date, dayEntries, dayLog]);
 
   const handleSave = async (entryType: "period_start" | "period_end") => {
     if (!date) return;
     setSaving(true);
     try {
       await onSave(date, entryType, notes);
+      // Also save daily log if mood/energy/symptoms are set
+      if (mood !== null || energy !== null || symptoms.length > 0) {
+        await onSaveDailyLog(date, mood, energy, symptoms, notes);
+      }
       onClose();
     } catch (error) {
       console.error("Failed to save entry:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDailyLogOnly = async () => {
+    if (!date) return;
+    setSaving(true);
+    try {
+      await onSaveDailyLog(date, mood, energy, symptoms, notes);
+      onClose();
+    } catch (error) {
+      console.error("Failed to save daily log:", error);
     } finally {
       setSaving(false);
     }
@@ -88,7 +134,7 @@ export function EntryModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
           {/* Existing entries */}
           {dayEntries.length > 0 && (
             <div className="space-y-2">
@@ -123,6 +169,20 @@ export function EntryModal({
             </div>
           )}
 
+          {/* Mood & Energy selector */}
+          <MoodEnergySelector
+            mood={mood}
+            energy={energy}
+            onMoodChange={setMood}
+            onEnergyChange={setEnergy}
+          />
+
+          {/* Symptom selector */}
+          <SymptomSelector
+            selectedSymptoms={symptoms}
+            onSymptomsChange={setSymptoms}
+          />
+
           {/* Notes input */}
           <div className="space-y-2">
             <label htmlFor="notes" className="text-sm font-medium">
@@ -130,29 +190,37 @@ export function EntryModal({
             </label>
             <Textarea
               id="notes"
-              placeholder="Symptoms, mood, flow intensity..."
+              placeholder="Additional notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={3}
+              rows={2}
             />
           </div>
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button
+            variant="secondary"
+            onClick={handleSaveDailyLogOnly}
+            disabled={saving || (mood === null && energy === null && symptoms.length === 0 && !notes)}
+            className="w-full sm:w-auto"
+          >
+            Save Log
+          </Button>
+          <Button
             variant="outline"
             onClick={() => handleSave("period_end")}
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            Mark Period End
+            Period End
           </Button>
           <Button
             onClick={() => handleSave("period_start")}
             disabled={saving}
             className="w-full sm:w-auto"
           >
-            Mark Period Start
+            Period Start
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -23,6 +23,13 @@ A simple, privacy-focused period tracking web app built with Next.js 14 and Supa
   - Cycle phase indicator (menstrual, follicular, ovulation, luteal)
   - Daily insights showing cycle day and days until next period
   - Phase-specific health tips and recommendations
+- Mood & symptom tracking:
+  - Quick mood selector (5-point scale with emojis)
+  - Energy level tracking
+  - Symptom tags (cramps, headache, bloating, etc.)
+  - 7-day and 30-day trend analysis
+  - Visual mood chart
+  - Top symptoms summary
 - Mobile-responsive design
 
 ## Tech Stack

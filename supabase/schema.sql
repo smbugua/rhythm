@@ -20,13 +20,30 @@ create table public.cycle_entries (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Daily logs table for mood and symptoms
+create table public.daily_logs (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  log_date date not null,
+  mood integer check (mood >= 1 and mood <= 5),
+  energy integer check (energy >= 1 and energy <= 5),
+  symptoms text[], -- Array of symptom tags
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique(user_id, log_date)
+);
+
 -- Create indexes for better query performance
 create index cycle_entries_user_id_idx on public.cycle_entries(user_id);
 create index cycle_entries_entry_date_idx on public.cycle_entries(entry_date);
+create index daily_logs_user_id_idx on public.daily_logs(user_id);
+create index daily_logs_log_date_idx on public.daily_logs(log_date);
 
 -- Enable Row Level Security
 alter table public.profiles enable row level security;
 alter table public.cycle_entries enable row level security;
+alter table public.daily_logs enable row level security;
 
 -- Profiles policies
 create policy "Users can view own profile"
@@ -56,6 +73,23 @@ create policy "Users can update own entries"
 
 create policy "Users can delete own entries"
   on public.cycle_entries for delete
+  using (auth.uid() = user_id);
+
+-- Daily logs policies
+create policy "Users can view own daily logs"
+  on public.daily_logs for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own daily logs"
+  on public.daily_logs for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own daily logs"
+  on public.daily_logs for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own daily logs"
+  on public.daily_logs for delete
   using (auth.uid() = user_id);
 
 -- Function to handle new user creation
