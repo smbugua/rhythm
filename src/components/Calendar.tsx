@@ -17,14 +17,21 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CycleEntry } from "@/lib/supabase";
-import { isDateInPeriod, getEntriesForDate } from "@/lib/cycle-utils";
+import {
+  isDateInPeriod,
+  getEntriesForDate,
+  isDateInFertileWindow,
+  isOvulationDay,
+  CycleStats
+} from "@/lib/cycle-utils";
 
 interface CalendarProps {
   entries: CycleEntry[];
+  stats: CycleStats;
   onDateClick: (date: Date) => void;
 }
 
-export function Calendar({ entries, onDateClick }: CalendarProps) {
+export function Calendar({ entries, stats, onDateClick }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const monthStart = startOfMonth(currentMonth);
@@ -43,8 +50,14 @@ export function Calendar({ entries, onDateClick }: CalendarProps) {
     const hasStart = dayEntries.some((e) => e.entry_type === "period_start");
     const hasEnd = dayEntries.some((e) => e.entry_type === "period_end");
     const hasNotes = dayEntries.some((e) => e.notes);
+    const isFertile = isDateInFertileWindow(
+      date,
+      stats.fertileWindowStart,
+      stats.fertileWindowEnd
+    );
+    const isOvulation = isOvulationDay(date, stats.predictedOvulationDate);
 
-    return { isPeriod, hasStart, hasEnd, hasNotes };
+    return { isPeriod, hasStart, hasEnd, hasNotes, isFertile, isOvulation };
   };
 
   return (
@@ -79,7 +92,7 @@ export function Calendar({ entries, onDateClick }: CalendarProps) {
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
         {days.map((day) => {
-          const { isPeriod, hasStart, hasEnd, hasNotes } = getDayStatus(day);
+          const { isPeriod, hasStart, hasEnd, hasNotes, isFertile, isOvulation } = getDayStatus(day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isToday = isSameDay(day, new Date());
 
@@ -92,6 +105,11 @@ export function Calendar({ entries, onDateClick }: CalendarProps) {
                 "hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
                 !isCurrentMonth && "text-muted-foreground/50",
                 isToday && "font-bold",
+                // Fertile window (green) - check before period to allow period to override
+                isFertile && !isPeriod && "bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50",
+                // Ovulation day gets a special border
+                isOvulation && !isPeriod && "ring-2 ring-green-500 ring-inset",
+                // Period days (pink/red)
                 isPeriod && "bg-primary/20 hover:bg-primary/30",
                 hasStart && "ring-2 ring-primary ring-inset",
                 hasEnd && "ring-2 ring-primary/50 ring-inset"
@@ -113,8 +131,12 @@ export function Calendar({ entries, onDateClick }: CalendarProps) {
           <span>Period</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-3 border-2 border-primary rounded" />
-          <span>Start</span>
+          <div className="w-3 h-3 bg-green-100 dark:bg-green-900/30 rounded" />
+          <span>Fertile</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 border-2 border-green-500 rounded" />
+          <span>Ovulation</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-1 h-1 bg-primary rounded-full" />
