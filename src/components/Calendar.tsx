@@ -132,7 +132,7 @@ export function Calendar({ entries, stats, onDateClick }: CalendarProps) {
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-green-100 dark:bg-green-900/30 rounded" />
-          <span>Fertile</span>
+          <span>Fertile Window</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 border-2 border-green-500 rounded" />
