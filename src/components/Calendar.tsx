@@ -25,6 +25,34 @@ import {
   CycleStats
 } from "@/lib/cycle-utils";
 
+interface FertilityPopupProps {
+  isOvulation: boolean;
+  onClose: () => void;
+}
+
+function FertilityPopup({ isOvulation, onClose }: FertilityPopupProps) {
+  return (
+    <div
+      className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-lg shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="text-xs font-semibold text-green-800 dark:text-green-200 text-center">
+        {isOvulation ? "Ovulation Day" : "Fertile Window"}
+      </div>
+      <div className="text-xs text-green-700 dark:text-green-300 text-center mt-1">
+        High likelihood of pregnancy
+      </div>
+      <button
+        onClick={onClose}
+        className="absolute -top-1 -right-1 w-4 h-4 bg-green-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-green-700"
+      >
+        ×
+      </button>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-green-300 dark:border-t-green-700" />
+    </div>
+  );
+}
+
 interface CalendarProps {
   entries: CycleEntry[];
   stats: CycleStats;
@@ -33,6 +61,7 @@ interface CalendarProps {
 
 export function Calendar({ entries, stats, onDateClick }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [fertilityPopupDate, setFertilityPopupDate] = useState<Date | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -96,30 +125,46 @@ export function Calendar({ entries, stats, onDateClick }: CalendarProps) {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isToday = isSameDay(day, new Date());
 
+          const showFertilityPopup = fertilityPopupDate && isSameDay(day, fertilityPopupDate);
+
           return (
-            <button
-              key={day.toISOString()}
-              onClick={() => onDateClick(day)}
-              className={cn(
-                "aspect-square p-1 text-sm rounded-md transition-colors relative",
-                "hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
-                !isCurrentMonth && "text-muted-foreground/50",
-                isToday && "font-bold",
-                // Fertile window (green) - check before period to allow period to override
-                isFertile && !isPeriod && "bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50",
-                // Ovulation day gets a special border
-                isOvulation && !isPeriod && "ring-2 ring-green-500 ring-inset",
-                // Period days (pink/red)
-                isPeriod && "bg-primary/20 hover:bg-primary/30",
-                hasStart && "ring-2 ring-primary ring-inset",
-                hasEnd && "ring-2 ring-primary/50 ring-inset"
+            <div key={day.toISOString()} className="relative">
+              <button
+                onClick={() => {
+                  if (isFertile && !isPeriod) {
+                    setFertilityPopupDate(showFertilityPopup ? null : day);
+                  } else {
+                    setFertilityPopupDate(null);
+                    onDateClick(day);
+                  }
+                }}
+                className={cn(
+                  "aspect-square p-1 text-sm rounded-md transition-colors relative w-full",
+                  "hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
+                  !isCurrentMonth && "text-muted-foreground/50",
+                  isToday && "font-bold",
+                  // Fertile window (green) - check before period to allow period to override
+                  isFertile && !isPeriod && "bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50",
+                  // Ovulation day gets a special border
+                  isOvulation && !isPeriod && "ring-2 ring-green-500 ring-inset",
+                  // Period days (pink/red)
+                  isPeriod && "bg-primary/20 hover:bg-primary/30",
+                  hasStart && "ring-2 ring-primary ring-inset",
+                  hasEnd && "ring-2 ring-primary/50 ring-inset"
+                )}
+              >
+                <span>{format(day, "d")}</span>
+                {hasNotes && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                )}
+              </button>
+              {showFertilityPopup && (
+                <FertilityPopup
+                  isOvulation={isOvulation}
+                  onClose={() => setFertilityPopupDate(null)}
+                />
               )}
-            >
-              <span>{format(day, "d")}</span>
-              {hasNotes && (
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-              )}
-            </button>
+            </div>
           );
         })}
       </div>

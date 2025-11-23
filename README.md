@@ -12,6 +12,12 @@ A simple, privacy-focused period tracking web app built with Next.js 14 and Supa
   - Average cycle length (last 3 cycles)
   - Average period duration
   - Predicted next period date
+  - **Fertile window & ovulation prediction** (based on [Stanford Children's Health guidelines](https://www.stanfordchildrens.org/en/topic/default?id=ovulation-date-calculator-41-OvulationCalc))
+- Fertility tracking:
+  - Green-highlighted fertile window on calendar (5 days before ovulation + ovulation day)
+  - Ovulation day indicator with special border
+  - Click on fertile days to see "High likelihood of pregnancy" popup
+  - Dedicated green Fertile Window card in stats panel
 - Mobile-responsive design
 
 ## Tech Stack
