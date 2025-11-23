@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface DashboardGreetingProps {
   userName: string | null;
-  stats: CycleStats;
+  stats: CycleStats; // Reserved for future use
   phaseInfo: CyclePhaseInfo;
 }
 
@@ -42,7 +42,7 @@ function getPhaseColor(phase: string): string {
   }
 }
 
-function getDailyInsight(phaseInfo: CyclePhaseInfo, stats: CycleStats): string {
+function getDailyInsight(phaseInfo: CyclePhaseInfo): string {
   const { phase, dayOfCycle, daysUntilNextPeriod } = phaseInfo;
 
   if (phase === "unknown") {
@@ -66,7 +66,8 @@ function getDailyInsight(phaseInfo: CyclePhaseInfo, stats: CycleStats): string {
   return insights.join(" • ");
 }
 
-export function DashboardGreeting({ userName, stats, phaseInfo }: DashboardGreetingProps) {
+export function DashboardGreeting({ userName, stats: _stats, phaseInfo }: DashboardGreetingProps) {
+  void _stats; // Reserved for future use
   const greeting = getGreeting();
   const healthTips = getPhaseHealthTips(phaseInfo.phase);
   const displayName = userName?.split(" ")[0] || "there";
@@ -84,7 +85,7 @@ export function DashboardGreeting({ userName, stats, phaseInfo }: DashboardGreet
             {displayName}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {getDailyInsight(phaseInfo, stats)}
+            {getDailyInsight(phaseInfo)}
           </p>
         </div>
 
