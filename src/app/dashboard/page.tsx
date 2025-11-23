@@ -94,6 +94,7 @@ export default function DashboardPage() {
         <StatsPanel stats={stats} />
         <Calendar
           entries={entries}
+          stats={stats}
           onDateClick={(date) => setSelectedDate(date)}
         />
         <EntryModal

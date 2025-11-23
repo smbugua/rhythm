@@ -1,10 +1,14 @@
-import { differenceInDays, addDays, format } from "date-fns";
+import { differenceInDays, addDays, subDays, format, isSameDay, isWithinInterval } from "date-fns";
 import { CycleEntry } from "./supabase";
 
 export interface CycleStats {
   averageCycleLength: number | null;
   averagePeriodDuration: number | null;
   predictedNextPeriod: string | null;
+  predictedNextPeriodDate: Date | null;
+  predictedOvulationDate: Date | null;
+  fertileWindowStart: Date | null;
+  fertileWindowEnd: Date | null;
 }
 
 export function calculateCycleStats(entries: CycleEntry[]): CycleStats {
@@ -66,24 +70,62 @@ export function calculateCycleStats(entries: CycleEntry[]): CycleStats {
     );
   }
 
-  // Predict next period
+  // Predict next period and ovulation
   let predictedNextPeriod: string | null = null;
+  let predictedNextPeriodDate: Date | null = null;
+  let predictedOvulationDate: Date | null = null;
+  let fertileWindowStart: Date | null = null;
+  let fertileWindowEnd: Date | null = null;
+
   if (periodStarts.length > 0 && averageCycleLength) {
     const lastStart = new Date(periodStarts[periodStarts.length - 1].entry_date);
     const predicted = addDays(lastStart, averageCycleLength);
     predictedNextPeriod = format(predicted, "MMM d, yyyy");
+    predictedNextPeriodDate = predicted;
+
+    // Ovulation typically occurs 14 days before the next period
+    predictedOvulationDate = subDays(predicted, 14);
+
+    // Fertile window: 5 days before ovulation + ovulation day
+    fertileWindowStart = subDays(predictedOvulationDate, 5);
+    fertileWindowEnd = predictedOvulationDate;
   }
 
   return {
     averageCycleLength,
     averagePeriodDuration,
     predictedNextPeriod,
+    predictedNextPeriodDate,
+    predictedOvulationDate,
+    fertileWindowStart,
+    fertileWindowEnd,
   };
 }
 
 export function getEntriesForDate(entries: CycleEntry[], date: Date): CycleEntry[] {
   const dateStr = format(date, "yyyy-MM-dd");
   return entries.filter((e) => e.entry_date === dateStr);
+}
+
+export function isDateInFertileWindow(
+  date: Date,
+  fertileWindowStart: Date | null,
+  fertileWindowEnd: Date | null
+): boolean {
+  if (!fertileWindowStart || !fertileWindowEnd) return false;
+
+  return isWithinInterval(date, {
+    start: fertileWindowStart,
+    end: fertileWindowEnd,
+  });
+}
+
+export function isOvulationDay(
+  date: Date,
+  ovulationDate: Date | null
+): boolean {
+  if (!ovulationDate) return false;
+  return isSameDay(date, ovulationDate);
 }
 
 export function isDateInPeriod(entries: CycleEntry[], date: Date): boolean {
